@@ -1,270 +1,473 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Timer, PlayCircle, PauseCircle, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-
-const wordsList = [
-  ['Vegemite', 'Kangaroo', 'Sydney Opera House', 'Uluru', 'Great Barrier Reef'],
-  ['Hugh Jackman', 'Steve Irwin', 'AC/DC', 'Kylie Minogue', 'Nicole Kidman'],
-  ['Melbourne Cricket Ground', 'Bondi Beach', 'Tasmania', 'Gold Coast', 'Perth'],
-  ['Tim Tam', 'Lamington', 'Fairy Bread', 'Meat Pie', 'Pavlova'],
-  ['Wombat', 'Koala', 'Dingo', 'Platypus', 'Emu'],
-  ['Neighbours', 'Home and Away', 'Blue Heelers', 'Play School', 'Kath & Kim'],
-];
-
-const ThirtySecondsGame = () => {
-  const [currentWords, setCurrentWords] = useState([]);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [guessedWords, setGuessedWords] = useState([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [currentTeam, setCurrentTeam] = useState('A');
-  const [teamAScore, setTeamAScore] = useState(0);
-  const [teamBScore, setTeamBScore] = useState(0);
-  const [roundNumber, setRoundNumber] = useState(1);
-  const [turnNumber, setTurnNumber] = useState(1);
-  const [gameOver, setGameOver] = useState(false);
-
-  const MAX_ROUNDS = 3; // 3 full rounds (each team goes once per round)
-
-  const playTimerEndSound = () => {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
-    const playBeep = (startTime) => {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(440, startTime);
-      gainNode.gain.setValueAtTime(0.2, startTime);
-      
-      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
-      
-      oscillator.start(startTime);
-      oscillator.stop(startTime + 0.3);
-    };
-    
-    playBeep(audioContext.currentTime);
-    playBeep(audioContext.currentTime + 0.4);
-    playBeep(audioContext.currentTime + 0.8);
-    
-    setTimeout(() => {
-      audioContext.close();
-    }, 1500);
-  };
-
-  useEffect(() => {
-    let timer;
-    if (isPlaying && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      endRound();
-    }
-    return () => clearInterval(timer);
-  }, [isPlaying, timeLeft]);
-
-  const startNewRound = () => {
-    if (timeLeft === 0) {
-      if (currentTeam === 'B') {
-        if (roundNumber >= MAX_ROUNDS) {
-          setGameOver(true);
-          return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Down Under Dash</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        setRoundNumber(prev => prev + 1);
-      }
-      setCurrentTeam(currentTeam === 'A' ? 'B' : 'A');
-      setTurnNumber(prev => prev + 1);
-    }
-    const randomIndex = Math.floor(Math.random() * wordsList.length);
-    setCurrentWords(wordsList[randomIndex]);
-    setTimeLeft(30);
-    setIsPlaying(true);
-    setGuessedWords([]);
-  };
 
-  const endRound = () => {
-    setIsPlaying(false);
-    playTimerEndSound();
-  };
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
 
-  const toggleWord = (word) => {
-    if (!isPlaying) return;
-    
-    if (guessedWords.includes(word)) {
-      setGuessedWords(guessedWords.filter(w => w !== word));
-      if (currentTeam === 'A') {
-        setTeamAScore(prev => prev - 1);
-      } else {
-        setTeamBScore(prev => prev - 1);
-      }
-    } else {
-      setGuessedWords([...guessedWords, word]);
-      if (currentTeam === 'A') {
-        setTeamAScore(prev => prev + 1);
-      } else {
-        setTeamBScore(prev => prev + 1);
-      }
-    }
-  };
+        .container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            padding: 2rem 1rem;
+            flex-grow: 1;
+        }
 
-  const resetGame = () => {
-    setTeamAScore(0);
-    setTeamBScore(0);
-    setTimeLeft(30);
-    setIsPlaying(false);
-    setCurrentWords([]);
-    setGuessedWords([]);
-    setCurrentTeam('A');
-    setRoundNumber(1);
-    setTurnNumber(1);
-    setGameOver(false);
-  };
+        .card {
+            width: 100%;
+            max-width: 42rem;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+        }
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      <div className="w-full flex justify-center p-4 pt-8 flex-grow">
-        <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle className="text-center">Down Under Dash</CardTitle>
-          <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-            <CollapsibleTrigger className="flex items-center justify-center gap-2 w-full text-gray-500 hover:text-gray-700">
-              How to Play 
-              {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2 mt-4 text-gray-600 text-sm">
-              <p className="font-medium">Game Rules:</p>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Form two teams - Team A and Team B</li>
-                <li>Teams take turns, alternating each round</li>
-                <li>When it's your team's turn, choose one player to be the describer</li>
-                <li>Click 'Start Round' to begin your team's 30-second round</li>
-                <li>The describer tries to get their team to guess all five words</li>
-                <li>Click each word as it's correctly guessed to score points</li>
-                <li>After 30 seconds, it's the other team's turn with new words</li>
-              </ol>
-              
-              <p className="font-medium mt-4">Describing Rules:</p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>Cannot say any part of the word</li>
-                <li>No "rhymes with" clues</li>
-                <li>No spelling out the word</li>
-                <li>No "sounds like" clues</li>
-                <li>No gestures - verbal descriptions only</li>
-              </ul>
-            </CollapsibleContent>
-          </Collapsible>
-        </CardHeader>
+        .card-title {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
 
-        <CardContent>
-          <div className="flex flex-col items-center gap-6">
-            <div className="flex items-center gap-4">
-              <div className="text-4xl font-bold flex items-center gap-2">
-                <Timer className="w-8 h-8" />
-                {timeLeft}s
-              </div>
-              <div className="flex gap-8">
-                <div className={`text-2xl ${currentTeam === 'A' ? 'font-bold' : ''}`}>
-                  Team A: {teamAScore}
+        .collapsible-trigger {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            color: #6b7280;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0.5rem;
+        }
+
+        .collapsible-content {
+            display: none;
+            margin-top: 1rem;
+            color: #4b5563;
+            font-size: 0.875rem;
+        }
+
+        .collapsible-content.open {
+            display: block;
+        }
+
+        .game-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .timer-score {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .timer {
+            font-size: 2.25rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .scores {
+            display: flex;
+            gap: 2rem;
+            font-size: 1.5rem;
+        }
+
+        .score.active {
+            font-weight: bold;
+        }
+
+        .round-info {
+            text-align: center;
+            font-size: 1.125rem;
+            color: #4b5563;
+        }
+
+        .words-grid {
+            display: grid;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .word-button {
+            width: 100%;
+            padding: 1.5rem;
+            font-size: 1.125rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .word-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .word-button.guessed {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            border: none;
+        }
+
+        .btn-outline {
+            background: white;
+            border: 1px solid #d1d5db;
+        }
+
+        footer {
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 0.875rem;
+            color: #9ca3af;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        footer a {
+            color: #9ca3af;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        footer a:hover {
+            color: #6b7280;
+        }
+
+        .rules-list {
+            padding-left: 1.5rem;
+            margin: 0.5rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1 class="card-title">Down Under Dash</h1>
+            
+            <button class="collapsible-trigger">
+                How to Play
+                <span class="chevron-down">▼</span>
+                <span class="chevron-up" style="display: none;">▲</span>
+            </button>
+            
+            <div class="collapsible-content">
+                <p style="font-weight: 500;">Game Rules:</p>
+                <ol class="rules-list">
+                    <li>Form two teams - Team A and Team B</li>
+                    <li>Teams take turns, alternating each round</li>
+                    <li>When it's your team's turn, choose one player to be the describer</li>
+                    <li>Click 'Start Round' to begin your team's 30-second round</li>
+                    <li>The describer tries to get their team to guess all five words</li>
+                    <li>Click each word as it's correctly guessed to score points</li>
+                    <li>After 30 seconds, it's the other team's turn with new words</li>
+                </ol>
+                
+                <p style="font-weight: 500; margin-top: 1rem;">Describing Rules:</p>
+                <ul class="rules-list">
+                    <li>Cannot say any part of the word</li>
+                    <li>No "rhymes with" clues</li>
+                    <li>No spelling out the word</li>
+                    <li>No "sounds like" clues</li>
+                    <li>No gestures - verbal descriptions only</li>
+                </ul>
+            </div>
+
+            <div class="game-info">
+                <div class="timer-score">
+                    <div class="timer">
+                        ⏱️ <span id="timer">30s</span>
+                    </div>
+                    <div class="scores">
+                        <div id="team-a-score" class="score active">Team A: 0</div>
+                        <div id="team-b-score" class="score">Team B: 0</div>
+                    </div>
                 </div>
-                <div className={`text-2xl ${currentTeam === 'B' ? 'font-bold' : ''}`}>
-                  Team B: {teamBScore}
+
+                <div id="round-info" class="round-info">
+                    Round 1 of 3 - Team A's Turn
                 </div>
-              </div>
-            </div>
 
-            <div className="text-center text-lg text-gray-600">
-              {!gameOver ? (
-                <>Round {roundNumber} of {MAX_ROUNDS} - Team {currentTeam}'s Turn</>
-              ) : (
-                <div className="space-y-2">
-                  <div className="text-xl font-bold">
-                    Game Over! {teamAScore > teamBScore ? 'Team A' : teamAScore < teamBScore ? 'Team B' : 'It\'s a Tie'}
-                  </div>
-                  <div>
-                    Final Score: Team A ({teamAScore}) - Team B ({teamBScore})
-                  </div>
+                <div id="words-grid" class="words-grid">
+                    <!-- Words will be inserted here by JavaScript -->
                 </div>
-              )}
-            </div>
 
-            <div className="grid gap-4">
-              {currentWords.map((word, index) => (
-                <Button
-                  key={index}
-                  variant={guessedWords.includes(word) ? "default" : "outline"}
-                  className="w-full text-lg py-6"
-                  onClick={() => toggleWord(word)}
-                  disabled={!isPlaying}
-                >
-                  {word}
-                </Button>
-              ))}
+                <div class="controls">
+                    <button id="start-button" class="btn btn-primary">
+                        ▶️ Start Round
+                    </button>
+                    <button id="reset-button" class="btn btn-outline">
+                        🔄 Reset Game
+                    </button>
+                </div>
             </div>
-
-            <div className="flex gap-4">
-              {!isPlaying ? (
-                <Button 
-                  className="flex items-center gap-2" 
-                  onClick={startNewRound}
-                >
-                  <PlayCircle className="w-5 h-5" />
-                  Start Round
-                </Button>
-              ) : (
-                <Button 
-                  className="flex items-center gap-2"
-                  onClick={() => setIsPlaying(false)}
-                >
-                  <PauseCircle className="w-5 h-5" />
-                  Pause
-                </Button>
-              )}
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2"
-                onClick={resetGame}
-              >
-                <RotateCcw className="w-5 h-5" />
-                Reset Game
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      </div>
-
-      <footer className="py-6 text-sm text-gray-400 text-center border-t border-gray-100">
-        Created by{' '}
-        <a 
-          href="https://www.instagram.com/itstinafaye/" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-2"
-        >
-          Tina Wittmer
-        </a>
-        {' '}and{' '}
-        <a 
-          href="https://www.instagram.com/mangoscott/" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-2"
-        >
-          Scott Glasgow
-        </a>
-      </footer>
+        </div>
     </div>
-  );
-};
 
-export default ThirtySecondsGame;
+    <footer>
+        Created by 
+        <a href="https://www.instagram.com/itstinafaye/" target="_blank" rel="noopener noreferrer">
+            Tina Wittmer
+        </a>
+        and
+        <a href="https://www.instagram.com/mangoscott/" target="_blank" rel="noopener noreferrer">
+            Scott Glasgow
+        </a>
+    </footer>
+
+    <script>
+        const wordsList = [
+            ['Vegemite', 'Kangaroo', 'Sydney Opera House', 'Uluru', 'Great Barrier Reef'],
+            ['Hugh Jackman', 'Steve Irwin', 'AC/DC', 'Kylie Minogue', 'Nicole Kidman'],
+            ['Melbourne Cricket Ground', 'Bondi Beach', 'Tasmania', 'Gold Coast', 'Perth'],
+            ['Tim Tam', 'Lamington', 'Fairy Bread', 'Meat Pie', 'Pavlova'],
+            ['Wombat', 'Koala', 'Dingo', 'Platypus', 'Emu'],
+            ['Neighbours', 'Home and Away', 'Blue Heelers', 'Play School', 'Kath & Kim'],
+        ];
+
+        let currentWords = [];
+        let timeLeft = 30;
+        let isPlaying = false;
+        let guessedWords = [];
+        let currentTeam = 'A';
+        let teamAScore = 0;
+        let teamBScore = 0;
+        let roundNumber = 1;
+        let gameOver = false;
+        let timer;
+
+        const MAX_ROUNDS = 3;
+
+        // DOM elements
+        const timerElement = document.getElementById('timer');
+        const teamAScoreElement = document.getElementById('team-a-score');
+        const teamBScoreElement = document.getElementById('team-b-score');
+        const roundInfoElement = document.getElementById('round-info');
+        const wordsGridElement = document.getElementById('words-grid');
+        const startButton = document.getElementById('start-button');
+        const resetButton = document.getElementById('reset-button');
+        const collapsibleTrigger = document.querySelector('.collapsible-trigger');
+        const collapsibleContent = document.querySelector('.collapsible-content');
+        const chevronDown = document.querySelector('.chevron-down');
+        const chevronUp = document.querySelector('.chevron-up');
+
+        function playTimerEndSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            const playBeep = (startTime) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(440, startTime);
+                gainNode.gain.setValueAtTime(0.2, startTime);
+                
+                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+                
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.3);
+            };
+            
+            playBeep(audioContext.currentTime);
+            playBeep(audioContext.currentTime + 0.4);
+            playBeep(audioContext.currentTime + 0.8);
+            
+            setTimeout(() => {
+                audioContext.close();
+            }, 1500);
+        }
+
+        function updateDisplay() {
+            timerElement.textContent = timeLeft + 's';
+            teamAScoreElement.textContent = `Team A: ${teamAScore}`;
+            teamBScoreElement.textContent = `Team B: ${teamBScore}`;
+            
+            teamAScoreElement.classList.toggle('active', currentTeam === 'A');
+            teamBScoreElement.classList.toggle('active', currentTeam === 'B');
+
+            if (gameOver) {
+                const winner = teamAScore > teamBScore ? 'Team A' : teamAScore < teamBScore ? 'Team B' : "It's a Tie";
+                roundInfoElement.innerHTML = `
+                    Game Over! ${winner}<br>
+                    Final Score: Team A (${teamAScore}) - Team B (${teamBScore})
+                `;
+            } else {
+                roundInfoElement.textContent = `Round ${roundNumber} of ${MAX_ROUNDS} - Team ${currentTeam}'s Turn`;
+            }
+
+            startButton.textContent = isPlaying ? '⏸️ Pause' : '▶️ Start Round';
+        }
+
+        function renderWords() {
+            wordsGridElement.innerHTML = currentWords.map((word, index) => `
+                <button 
+                    class="word-button ${guessedWords.includes(word) ? 'guessed' : ''}"
+                    ${!isPlaying ? 'disabled' : ''}
+                    onclick="toggleWord('${word}')"
+                >
+                    ${word}
+                </button>
+            `).join('');
+        }
+
+        function startNewRound() {
+            if (timeLeft === 0) {
+                if (currentTeam === 'B') {
+                    if (roundNumber >= MAX_ROUNDS) {
+                        setGameOver();
+                        return;
+                    }
+                    roundNumber++;
+                }
+                currentTeam = currentTeam === 'A' ? 'B' : 'A';
+            }
+            
+            const randomIndex = Math.floor(Math.random() * wordsList.length);
+            currentWords = [...wordsList[randomIndex]];
+            timeLeft = 30;
+            isPlaying = true;
+            guessedWords = [];
+            
+            updateDisplay();
+            renderWords();
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(timer);
+            timer = setInterval(() => {
+                timeLeft--;
+                if (timeLeft === 0) {
+                    endRound();
+                }
+                updateDisplay();
+            }, 1000);
+        }
+
+        function endRound() {
+            isPlaying = false;
+            clearInterval(timer);
+            playTimerEndSound();
+            updateDisplay();
+            renderWords();
+        }
+
+        function toggleWord(word) {
+            if (!isPlaying) return;
+            
+            if (guessedWords.includes(word)) {
+                guessedWords = guessedWords.filter(w => w !== word);
+                if (currentTeam === 'A') {
+                    teamAScore--;
+                } else {
+                    teamBScore--;
+                }
+            } else {
+                guessedWords.push(word);
+                if (currentTeam === 'A') {
+                    teamAScore++;
+                } else {
+                    teamBScore++;
+                }
+            }
+            
+            updateDisplay();
+            renderWords();
+        }
+
+        function setGameOver() {
+            gameOver = true;
+            isPlaying = false;
+            clearInterval(timer);
+            updateDisplay();
+        }
+
+        function resetGame() {
+            teamAScore = 0;
+            teamBScore = 0;
+            timeLeft = 30;
+            isPlaying = false;
+            currentWords = [];
+            guessedWords = [];
+            currentTeam = 'A';
+            roundNumber = 1;
+            gameOver = false;
+            clearInterval(timer);
+            
+            updateDisplay();
+            renderWords();
+        }
+
+        // Event Listeners
+        startButton.addEventListener('click', () => {
+            if (gameOver) return;
+            
+            if (!isPlaying) {
+                startNewRound();
+            } else {
+                isPlaying = false;
+                clearInterval(timer);
+                updateDisplay();
+                renderWords();
+            }
+        });
+
+        resetButton.addEventListener('click', resetGame);
+
+        collapsibleTrigger.addEventListener('click', () => {
+            const isOpen = collapsibleContent.classList.contains('open');
+            collapsibleContent.classList.toggle('open');
+            chevronDown.style.display = isOpen ? 'inline' : 'none';
+            chevronUp.style.display = isOpen ? 'none' : 'inline';
+        });
+
+        // Initialize the game
+        updateDisplay();
+        renderWords();
