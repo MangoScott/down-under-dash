@@ -1,0 +1,270 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Timer, PlayCircle, PauseCircle, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+
+const wordsList = [
+  ['Vegemite', 'Kangaroo', 'Sydney Opera House', 'Uluru', 'Great Barrier Reef'],
+  ['Hugh Jackman', 'Steve Irwin', 'AC/DC', 'Kylie Minogue', 'Nicole Kidman'],
+  ['Melbourne Cricket Ground', 'Bondi Beach', 'Tasmania', 'Gold Coast', 'Perth'],
+  ['Tim Tam', 'Lamington', 'Fairy Bread', 'Meat Pie', 'Pavlova'],
+  ['Wombat', 'Koala', 'Dingo', 'Platypus', 'Emu'],
+  ['Neighbours', 'Home and Away', 'Blue Heelers', 'Play School', 'Kath & Kim'],
+];
+
+const ThirtySecondsGame = () => {
+  const [currentWords, setCurrentWords] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [guessedWords, setGuessedWords] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentTeam, setCurrentTeam] = useState('A');
+  const [teamAScore, setTeamAScore] = useState(0);
+  const [teamBScore, setTeamBScore] = useState(0);
+  const [roundNumber, setRoundNumber] = useState(1);
+  const [turnNumber, setTurnNumber] = useState(1);
+  const [gameOver, setGameOver] = useState(false);
+
+  const MAX_ROUNDS = 3; // 3 full rounds (each team goes once per round)
+
+  const playTimerEndSound = () => {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const playBeep = (startTime) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(440, startTime);
+      gainNode.gain.setValueAtTime(0.2, startTime);
+      
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+      
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.3);
+    };
+    
+    playBeep(audioContext.currentTime);
+    playBeep(audioContext.currentTime + 0.4);
+    playBeep(audioContext.currentTime + 0.8);
+    
+    setTimeout(() => {
+      audioContext.close();
+    }, 1500);
+  };
+
+  useEffect(() => {
+    let timer;
+    if (isPlaying && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      endRound();
+    }
+    return () => clearInterval(timer);
+  }, [isPlaying, timeLeft]);
+
+  const startNewRound = () => {
+    if (timeLeft === 0) {
+      if (currentTeam === 'B') {
+        if (roundNumber >= MAX_ROUNDS) {
+          setGameOver(true);
+          return;
+        }
+        setRoundNumber(prev => prev + 1);
+      }
+      setCurrentTeam(currentTeam === 'A' ? 'B' : 'A');
+      setTurnNumber(prev => prev + 1);
+    }
+    const randomIndex = Math.floor(Math.random() * wordsList.length);
+    setCurrentWords(wordsList[randomIndex]);
+    setTimeLeft(30);
+    setIsPlaying(true);
+    setGuessedWords([]);
+  };
+
+  const endRound = () => {
+    setIsPlaying(false);
+    playTimerEndSound();
+  };
+
+  const toggleWord = (word) => {
+    if (!isPlaying) return;
+    
+    if (guessedWords.includes(word)) {
+      setGuessedWords(guessedWords.filter(w => w !== word));
+      if (currentTeam === 'A') {
+        setTeamAScore(prev => prev - 1);
+      } else {
+        setTeamBScore(prev => prev - 1);
+      }
+    } else {
+      setGuessedWords([...guessedWords, word]);
+      if (currentTeam === 'A') {
+        setTeamAScore(prev => prev + 1);
+      } else {
+        setTeamBScore(prev => prev + 1);
+      }
+    }
+  };
+
+  const resetGame = () => {
+    setTeamAScore(0);
+    setTeamBScore(0);
+    setTimeLeft(30);
+    setIsPlaying(false);
+    setCurrentWords([]);
+    setGuessedWords([]);
+    setCurrentTeam('A');
+    setRoundNumber(1);
+    setTurnNumber(1);
+    setGameOver(false);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <div className="w-full flex justify-center p-4 pt-8 flex-grow">
+        <Card className="w-full max-w-2xl">
+        <CardHeader>
+          <CardTitle className="text-center">Down Under Dash</CardTitle>
+          <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+            <CollapsibleTrigger className="flex items-center justify-center gap-2 w-full text-gray-500 hover:text-gray-700">
+              How to Play 
+              {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2 mt-4 text-gray-600 text-sm">
+              <p className="font-medium">Game Rules:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Form two teams - Team A and Team B</li>
+                <li>Teams take turns, alternating each round</li>
+                <li>When it's your team's turn, choose one player to be the describer</li>
+                <li>Click 'Start Round' to begin your team's 30-second round</li>
+                <li>The describer tries to get their team to guess all five words</li>
+                <li>Click each word as it's correctly guessed to score points</li>
+                <li>After 30 seconds, it's the other team's turn with new words</li>
+              </ol>
+              
+              <p className="font-medium mt-4">Describing Rules:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Cannot say any part of the word</li>
+                <li>No "rhymes with" clues</li>
+                <li>No spelling out the word</li>
+                <li>No "sounds like" clues</li>
+                <li>No gestures - verbal descriptions only</li>
+              </ul>
+            </CollapsibleContent>
+          </Collapsible>
+        </CardHeader>
+
+        <CardContent>
+          <div className="flex flex-col items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="text-4xl font-bold flex items-center gap-2">
+                <Timer className="w-8 h-8" />
+                {timeLeft}s
+              </div>
+              <div className="flex gap-8">
+                <div className={`text-2xl ${currentTeam === 'A' ? 'font-bold' : ''}`}>
+                  Team A: {teamAScore}
+                </div>
+                <div className={`text-2xl ${currentTeam === 'B' ? 'font-bold' : ''}`}>
+                  Team B: {teamBScore}
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center text-lg text-gray-600">
+              {!gameOver ? (
+                <>Round {roundNumber} of {MAX_ROUNDS} - Team {currentTeam}'s Turn</>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-xl font-bold">
+                    Game Over! {teamAScore > teamBScore ? 'Team A' : teamAScore < teamBScore ? 'Team B' : 'It\'s a Tie'}
+                  </div>
+                  <div>
+                    Final Score: Team A ({teamAScore}) - Team B ({teamBScore})
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-4">
+              {currentWords.map((word, index) => (
+                <Button
+                  key={index}
+                  variant={guessedWords.includes(word) ? "default" : "outline"}
+                  className="w-full text-lg py-6"
+                  onClick={() => toggleWord(word)}
+                  disabled={!isPlaying}
+                >
+                  {word}
+                </Button>
+              ))}
+            </div>
+
+            <div className="flex gap-4">
+              {!isPlaying ? (
+                <Button 
+                  className="flex items-center gap-2" 
+                  onClick={startNewRound}
+                >
+                  <PlayCircle className="w-5 h-5" />
+                  Start Round
+                </Button>
+              ) : (
+                <Button 
+                  className="flex items-center gap-2"
+                  onClick={() => setIsPlaying(false)}
+                >
+                  <PauseCircle className="w-5 h-5" />
+                  Pause
+                </Button>
+              )}
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={resetGame}
+              >
+                <RotateCcw className="w-5 h-5" />
+                Reset Game
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      </div>
+
+      <footer className="py-6 text-sm text-gray-400 text-center border-t border-gray-100">
+        Created by{' '}
+        <a 
+          href="https://www.instagram.com/itstinafaye/" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-2"
+        >
+          Tina Wittmer
+        </a>
+        {' '}and{' '}
+        <a 
+          href="https://www.instagram.com/mangoscott/" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-2"
+        >
+          Scott Glasgow
+        </a>
+      </footer>
+    </div>
+  );
+};
+
+export default ThirtySecondsGame;
